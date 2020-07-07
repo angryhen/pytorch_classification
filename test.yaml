@@ -1,0 +1,34 @@
+# csv_path
+csv: /home/du/Desktop/work_project/TBox-server-dh/classification/ResNeSt/scripts/dbox_c15_dedup.csv
+
+# main params
+num_classes: 15
+img_size: 224
+batch_size: 64
+lr: 0.0001
+lr_decay: 10
+weight_decay: 0.0001
+freq: 10 # frequency of print
+stage_epochs: [7, 5, 5]
+#stage_epochs: [10, 7, 7, 5]
+work_num: 10
+num_gpus: 1
+fold_idx: 1
+
+log_file: result.txt  # output log file
+test_file: logs/test_result.txt  # output result about test-dataset
+each_class_pre: False  # visul each class precision result while train
+
+# mean and std in RGB, default is coco
+mean: [0.485, 0.456, 0.406]
+std: [0.229, 0.224, 0.225]
+
+# select ResNeSt-model, choice one of [resnest50, resnest101, resnest200,resnest269]
+model: resnest50
+checkpoint: logs/resnest50/checkpoint.pth
+
+# label
+labels: {0: 'hzy-hzy-pz-bxgw-500ml', 1: 'ty-hzy-pz-gw-500ml', 2: 'ty-tyxmtx-pz-lplldc-480ml', 3: 'ty-tylythsnr-tz-hsnrw-105g', 4: 'tdr-tdrstglm-tz-yw-83g', 5: 'ty-tyxmtx-pz-lpqnhc-480ml', 6: 'asm-asmnc-pz-yw-500ml', 7: 'ty-qbsds-pz-nmw-500ml', 8: 'ty-tync-pz-mxw-310ml', 9: 'yh-yhbkf-pz-yw-450ml', 10: 'ty-tybhc-pz-nmw-500ml', 11: 'ty-tylc-pz-mlw-500ml', 12: 'ty-tyhsnrm-tz-nr-105g', 13: 'tdr-tdrsslltgm-tz-yw-90g', 14: 'ty-tyhld-gz-xclc-310ml'}
+
+labels_list: ['hzy-hzy-pz-bxgw-500ml', 'ty-hzy-pz-gw-500ml', 'ty-tyxmtx-pz-lplldc-480ml', 'ty-tylythsnr-tz-hsnrw-105g', 'tdr-tdrstglm-tz-yw-83g', 'ty-tyxmtx-pz-lpqnhc-480ml', 'asm-asmnc-pz-yw-500ml', 'ty-qbsds-pz-nmw-500ml', 'ty-tync-pz-mxw-310ml', 'yh-yhbkf-pz-yw-450ml', 'ty-tybhc-pz-nmw-500ml', 'ty-tylc-pz-mlw-500ml', 'ty-tyhsnrm-tz-nr-105g', 'tdr-tdrsslltgm-tz-yw-90g', 'ty-tyhld-gz-xclc-310ml']
+
