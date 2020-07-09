@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from .transform import create_transform
+from data.transform import create_transform
 
 
 class MyDataset(Dataset):
@@ -26,10 +26,7 @@ class MyDataset(Dataset):
         return len(self.img_df)
 
 
-def create_dataset(config, mode):
-    train_transforms = create_transform(config, mode)
-    val_transforms = create_transform(config, mode)
-    train_dataset = MyDataset(config.train, train_transforms)
-    val_dataset = MyDataset(config.val, val_transforms)
-
-    return train_dataset, val_dataset
+def create_dataset(config, data, mode):
+    transforms = create_transform(config, mode)
+    dataset = MyDataset(data, transforms)
+    return dataset
