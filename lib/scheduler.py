@@ -1,8 +1,16 @@
 import torch
+import numpy as np
 
 
 def warmup_schedule(step, warmup_init_lr, base_lr, warmup_stepss):
     lr = warmup_init_lr + (base_lr - warmup_init_lr) * (step / warmup_stepss)
+    return lr
+
+
+def cosine_scheduler(step, base_lr, min_lr, steps):
+    lr = base_lr * (min_lr +
+                    (1 - min_lr) * 0.5 *
+                     (1 + np.cos(step / steps * np.pi)))
     return lr
 
 
@@ -13,16 +21,18 @@ class MultiScheduler:
         self.base_lr = config.train.scheduler.base_lr
         self.min_lr = config.train.scheduler.min_lr
         self.warmup_init_lr = config.train.scheduler.warmup_init_lr
+        self.total_steps = (config.train.epoches - self.warmup_epoches) * steps_per_epoch
 
 
     def __call__(self, step):
-        if step < self.warmup_steps:
+        if step <= self.warmup_steps:
             lr = warmup_schedule(step,
                                  self.warmup_init_lr,
                                  self.base_lr,
                                  self.warmup_steps)
         else:
-            lr = self.base_lr
+            step -= self.warmup_steps
+            lr = cosine_scheduler(step, self.base_lr, self.min_lr, self.total_steps)
 
         return lr
 
@@ -31,9 +41,9 @@ if __name__ == '__main__':
     from configs.config import get_cfg_defaults
     import matplotlib.pyplot as plt
 
-    steps_per_epoches = 500
-    total_step = 600
     config = get_cfg_defaults()
+    steps_per_epoches = 200
+    total_step = config.train.epoches * steps_per_epoches
 
     lr = MultiScheduler(config, steps_per_epoches)
 
@@ -52,6 +62,7 @@ if __name__ == '__main__':
 
         print(j, optimizer.param_groups[0]['lr'])
         print(j, lr_scheduler.get_lr()[0])
+        print(j, lr_scheduler.get_last_lr())
 
         x = model(torch.randn(3,3,64,64))
         loss = x.sum()

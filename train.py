@@ -7,11 +7,13 @@ from tqdm import tqdm
 import pathlib
 import torch
 import torchvision
+from tensorboardX import SummaryWriter
 
 from configs.config import get_cfg_defaults
 from data.dataloader import create_dataloader
 from lib.use_model import choice_model
 from losses.losses import get_loss
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--configs', type=str, default='c15',
@@ -65,7 +67,7 @@ def main():
 
         # optimizer
         optimizer = torch.optim.Adam(model.parameters(),
-                                     lr=config.train.scheduler.base_lr,
+                                     lr=1,
                                      weight_decay=config.train.scheduler.weight_decay,
                                      amsgrad=True)
 
