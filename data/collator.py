@@ -67,3 +67,14 @@ def get_collate_fn(config):
         return CutMixCollator(config)
     else:
         return None
+
+
+def targets_to_device(config, targets, device):
+    if config.train.collator.type == 'mixup' or config.train.collator.type =='cutmix':
+        target_a, target_b, lam = targets
+        targets = (target_a.to(device),
+                   target_b.to(device),
+                   lam)
+    else:
+        targets = targets.to(device)
+    return targets

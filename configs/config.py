@@ -1,7 +1,8 @@
 from yacs.config import CfgNode as CN
 
 config = CN()
-
+config.device = 'cuda'
+config.apex_mode = 'O1'  #  "O0", "O1", "O2", and "O3"
 # model
 config.model = CN()
 config.model.name = 'resnest50'
@@ -18,6 +19,7 @@ config.train.mean = [0.485, 0.456, 0.406]
 config.train.std = [0.229, 0.224, 0.225]
 config.train.checkpoint = f'logs/{config.model.name}'
 config.train.fold = 1
+config.train.subdivision = 1
 
 # train -- optimizer
 config.train.optimizer = CN()
@@ -26,7 +28,7 @@ config.train.optimizer.method = 'adam'
 # train -- scheduler
 config.train.scheduler = CN()
 config.train.scheduler.method = 'cosine'  # (method: cosine, ...)
-config.train.scheduler.base_lr = 1e-3
+config.train.scheduler.base_lr = 1e-4
 config.train.scheduler.min_lr = 1e-6
 config.train.scheduler.lr_decay = 0.95
 config.train.scheduler.weight_decay = 1e-4
@@ -43,7 +45,7 @@ config.train.dataloader.non_blocking = True  # False when memory not enough
 
 # train -- collator
 config.train.collator = CN()
-config.train.collator.type = 'mixup'  # ['mixup', 'cutmix', None]
+config.train.collator.type = 'None'  # ['mixup', 'cutmix', None]
 config.train.collator.mixup_alpha = 1.0
 config.train.collator.cutmix_alpha = 1.0
 
@@ -64,6 +66,7 @@ config.val.dataloader.pin_memory = False  # False when memory not enough
 
 # tensorboard
 config.tensorboard = CN()
+config.tensorboard.log_dir = 'logs'
 
 # model
 config.model = CN()
