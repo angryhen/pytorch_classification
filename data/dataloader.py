@@ -20,11 +20,11 @@ def create_dataloader(config, data, mode):
         collator = get_collate_fn(config)
 
         # DataLoader
-        data_loader = DataLoader(dataset,
-                                  batch_sampler=train_BatchSampler,
-                                  collate_fn=collator,
-                                  pin_memory=config.train.dataloader.pin_memory,
-                                  num_workers=config.train.dataloader.work_nums)
+        data_loader = DataLoader(dataset=dataset,
+                                batch_sampler=train_BatchSampler,
+                                collate_fn=collator,
+                                pin_memory=config.train.dataloader.pin_memory,
+                                num_workers=config.train.dataloader.work_nums)
 
     else:
         val_SequentialSampler = sampler.SequentialSampler(dataset)

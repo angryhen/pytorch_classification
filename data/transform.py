@@ -8,16 +8,39 @@ from albumentations.pytorch import ToTensorV2
 def create_transform(config, mode):
     if mode == 'train':
         transforms = Compose([
-            Resize(256, 256),
-            HorizontalFlip(),
-            CoarseDropout(p=0.3),
-            Normalize(
-                mean=config.train.mean,
-                std=config.train.std,
-            ),
-            RandomCrop(config.train.img_size, config.train.img_size),
-            ToTensorV2(),
-        ])
+                    Resize(256, 256),
+                    HorizontalFlip(),
+                    Transpose(),
+                    CoarseDropout(p=0.3),
+                    OneOf([
+                        RandomBrightnessContrast(brightness_limit=0.6),
+                        RandomGamma(),
+                    ], p=0.6),
+                    ShiftScaleRotate(rotate_limit=45),  # 75
+                    OneOf([
+                        CLAHE(p=0.5),
+                        GaussianBlur(3, p=0.3),
+                        IAASharpen(alpha=(0.2, 0.3), p=0.3),
+                    ], p=1),  # 1
+                    OneOf([
+                        # 畸变相关操作
+                        OpticalDistortion(p=0.3),
+                        GridDistortion(p=0.2),
+                        IAAPiecewiseAffine(p=0.3),
+                    ], p=0.2),
+                    # add
+                    OneOf([
+                        MotionBlur(p=0.3),
+                        MedianBlur(blur_limit=3, p=0.3),
+                        Blur(blur_limit=3, p=0.3),
+                    ], p=0.8),
+                    Normalize(
+                        mean=config.train.mean,
+                        std=config.train.std,
+                    ),
+                    RandomCrop(config.train.img_size, config.train.img_size),
+                    ToTensorV2(),
+                ])
     elif mode == 'val':
         transforms = Compose([
             Resize(config.val.img_size, config.val.img_size),

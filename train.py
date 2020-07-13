@@ -1,6 +1,9 @@
 import argparse
 import pandas as pd
+import time
+import cv2
 import numpy as np
+import os
 from sklearn.model_selection import KFold
 from alfred.utils.log import logger
 from tqdm import tqdm
@@ -17,14 +20,22 @@ from lib.use_model import choice_model
 from losses.losses import get_loss
 from lib.optimizer import get_optimizer
 from lib.tensorboard import get_tensorboard_writer
-from lib.scheduler import get_scheduler
-
+from lib.scheduler import CosineWarmupLr
+from utils.metrics import accuracy, AverageMeter, ProgressMeter
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--configs', type=str, default='c15',
                     help='the yml which include all parameters!')
 args = parser.parse_args()
+
 global_step = 0
+
+
+# 定义模型的存储
+def save_checkpoint(config, state, epoch):
+    filename = os.path.join(config.model.save_path, f'{epoch}.pth')
+    torch.save(state, filename)
+
 
 def get_config():
     config = get_cfg_defaults()
@@ -81,52 +92,82 @@ def main():
 
         # optimizer
         optimizer = get_optimizer(config, model)
-        model, optimizer = apex.amp.initialize(model,
-                                               optimizer,
-                                               opt_level=config.apex_mode)
-        scheduler = get_scheduler(config, optimizer, len(train_loader))
+        if config.apex:
+            model, optimizer = apex.amp.initialize(model,
+                                                   optimizer,
+                                                   opt_level=config.apex_mode)
+
+        scheduler = CosineWarmupLr(config, optimizer, len(train_loader))
+
         # loss
         train_loss, val_loss = get_loss(config)
+
         # tensorboard
         writer = get_tensorboard_writer(config.tensorboard.log_dir,
                                         purge_step=None)
 
         for epoch in range(config.train.epoches):
+            logger.info(f'Epoches: {epoch}/{config.train.epoches}')
 
+            # mertric
+            batch_time = AverageMeter('Time', ':6.3f')
+            losses = AverageMeter('Loss', ':.4e')
+            top1 = AverageMeter('Acc@1', ':6.2f')
+            top5 = AverageMeter('Acc@5', ':6.2f')
+            progress = ProgressMeter(len(train_loader), batch_time, losses, top1, top5)
 
             # switch to train mode
             model.train()
-
+            end = time.time()
+            # train
             for step, (images, targets) in enumerate(train_loader):
-                global_step = 0
+                global global_step
+                global_step += 1
                 step += 1
 
                 images = images.to(device,
                                    non_blocking=config.train.dataloader.non_blocking)
-                targets = targets_to_device(config, targets, device)
-                data_chunks, target_chunks = subdivide_batch(config, images, targets)
-                optimizer.zero_grad()
-                outputs = []
-                losses = []
-                for data_chunk, target_chunk in zip(data_chunks, target_chunks):
-                    # print(data_chunk[1])
-                    output_chunk = model(data_chunk)
-                    outputs.append(output_chunk)
+                targets = targets.to(device,
+                                   non_blocking=config.train.dataloader.non_blocking)
 
-                    loss = train_loss(output_chunk, target_chunk)
-                    losses.append(loss)
+                outputs = model(images)
+                optimizer.zero_grad()
+                loss = train_loss(outputs, targets)
+
+                if config.apex:
                     with apex.amp.scale_loss(loss, optimizer) as scaled_loss:
                         scaled_loss.backward()
-                outputs = torch.cat(outputs)
+                else:
+                    loss.backward()
+
                 optimizer.step()
 
-                loss_ = sum(losses)
-                loss_num = loss_.item()
-                print(epoch, step, loss_num, optimizer.param_groups[0]['lr'])
+                acc1, acc5 = accuracy(outputs, targets, topk=(1, 5))
+                batch_time.update(time.time() - end)
+                losses.update(loss.item(), images.size(0))
+                top1.update(acc1[0], images.size(0))
+                top5.update(acc5[0], images.size(0))
+
+                if step % config.train.preiod == 0 or step == len(train_loader):
+                    progress.pr2int(step)
+
+                # add writer
+                writer.add_scalar('Train/Loss', losses.avg, global_step)
+                writer.add_scalar('Train/Acc-Top1', top1.avg, global_step)
+                writer.add_scalar('Train/Acc-Top5', top5.avg, global_step)
+                writer.add_scalar('Train/lr', scheduler.learning_rate, global_step)
+
+
                 scheduler.step()
+                end = time.time()
 
-
+            state = {
+                'epoch': epoch,
+                'state_dict': model.state_dict(),
+            }
+            save_checkpoint(config, state,epoch)
 
 
 if __name__ == '__main__':
+
     main()
