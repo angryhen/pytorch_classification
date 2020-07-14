@@ -26,7 +26,7 @@ def create_dataloader(config, data, mode):
                                 pin_memory=config.train.dataloader.pin_memory,
                                 num_workers=config.train.dataloader.work_nums)
 
-    else:
+    elif mode == 'val':
         val_SequentialSampler = sampler.SequentialSampler(dataset)
         val_BatchSampler = sampler.BatchSampler(val_SequentialSampler,
                                                 batch_size=config.val.batch_size,
@@ -35,5 +35,13 @@ def create_dataloader(config, data, mode):
                                 batch_sampler=val_BatchSampler,
                                 pin_memory=config.val.dataloader.pin_memory,
                                 num_workers=config.val.dataloader.work_nums)
-
+    else:
+        test_SequentialSampler = sampler.SequentialSampler(dataset)
+        test_BatchSampler = sampler.BatchSampler(test_SequentialSampler,
+                                                batch_size=config.test.batch_size,
+                                                drop_last=config.test.dataloader.drop_last)
+        data_loader = DataLoader(dataset,
+                                batch_sampler=test_BatchSampler,
+                                pin_memory=config.val.dataloader.pin_memory,
+                                num_workers=config.val.dataloader.work_nums)
     return data_loader

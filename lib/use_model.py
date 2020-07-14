@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from model.resnest.torch import resnest50, resnest101, resnest200, resnest269
 
@@ -14,6 +15,7 @@ class ResNest_50(nn.Module):
     def forward(self, img):
         output = self.net(img)
         return output
+
 
 
 class ResNest_101(nn.Module):
@@ -57,6 +59,19 @@ class ResNest_269(nn.Module):
         output = self.net(img)
         return output
 
+class ResNesXt_101(nn.Module):
+    def __init__(self, pretrained, num_classes):
+        super(ResNesXt_101, self).__init__()
+        model = torch.hub.load('facebookresearch/WSL-Images', 'resnext101_32x8d_wsl')
+        model.fc = nn.Sequential(
+            nn.Linear(2048, num_classes, bias=True),
+        )
+        self.net = model
+
+    def forward(self, img):
+        output = self.net(img)
+        return output
+
 def choice_model(flag, num_classes):
     if flag == 'resnest50':
         return ResNest_50(pretrained=True, num_classes=num_classes)
@@ -66,3 +81,5 @@ def choice_model(flag, num_classes):
         return ResNest_200(pretrained=True, num_classes=num_classes)
     elif flag == 'resnest269':
         return ResNest_269(pretrained=True, num_classes=num_classes)
+    elif flag == 'resnext101':
+        return ResNesXt_101(pretrained=True, num_classes=num_classes)
