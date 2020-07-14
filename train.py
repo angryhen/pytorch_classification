@@ -156,8 +156,6 @@ def main():
                                 init_method=config.dist_init_method)
 
 
-
-
     val_log_file = os.path.join(config.val.log_file, data_time) + '/log.txt'
     writer_log_file = os.path.join(config.tensorboard.log_dir, data_time)
     save_path = os.path.join(config.model.save_path, data_time)
