@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+import torch.distributed as dist
 from alfred.utils.log import logger
 from sklearn.model_selection import KFold
 
@@ -146,8 +147,16 @@ def main():
     config = get_config()
     device = torch.device(config.device)
     set_seed(config)
-
     print(device)
+
+    # dist
+    if config.dist:
+        torch.cuda.set_device(config.dist_local_rank)
+        dist.init_process_group(backend=config.dist_backend,
+                                init_method=config.dist_init_method)
+
+
+
 
     val_log_file = os.path.join(config.val.log_file, data_time) + '/log.txt'
     writer_log_file = os.path.join(config.tensorboard.log_dir, data_time)

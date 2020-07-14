@@ -8,6 +8,8 @@ config.apex_mode = 'O1'  #  "O0", "O1", "O2", and "O3"
 # dist
 config.dist = False
 config.dist_backend = 'nccl'
+config.dist_init_method = 'env://'
+config.dist_local_rank = 0
 
 
 # model
