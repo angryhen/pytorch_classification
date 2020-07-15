@@ -10,6 +10,8 @@ def get_model(config, local_rank):
     device = torch.device(config.device)
     model.to(device)
     if config.dist:
+        if config.dist_sync_bn:
+            model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = nn.parallel.DistributedDataParallel(model,
                                                     device_ids=[local_rank],
                                                     output_device=local_rank)

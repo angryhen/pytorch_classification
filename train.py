@@ -163,10 +163,12 @@ def val(config, val_loader, model, val_loss, writer):
             batch_time.update(time.time() - end)
             end = time.time()
 
-        logger.info(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
-                    .format(top1=top1, top5=top5))
+
         # add writer
         if get_rank() == 0:
+            logger.info(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
+                        .format(top1=top1, top5=top5))
+
             writer.add_scalar('Validate/Loss', losses.avg, global_step)
             writer.add_scalar('Validate/Acc-Top1', top1.avg, global_step)
             writer.add_scalar('Validate/Acc-Top5', top5.avg, global_step)
@@ -243,25 +245,25 @@ def main():
 
             if epoch % config.train.val_preiod == 0:
                 precision, avg_loss = val(config, val_loader, model, val_loss, writer)
+                if get_rank() == 0:
+                    with open(val_log_file, 'a') as acc_file:
+                        acc_file.write(
+                            f'Fold: {fold_idx:2d}, '
+                            f'Epoch: {epoch:2d}, '
+                            f'Precision: {precision:.8f}, '
+                            f'Loss: {avg_loss:.8f}\n')
 
-                with open(val_log_file, 'a') as acc_file:
-                    acc_file.write(
-                        f'Fold: {fold_idx:2d}, '
-                        f'Epoch: {epoch:2d}, '
-                        f'Precision: {precision:.8f}, '
-                        f'Loss: {avg_loss:.8f}\n')
-
-                is_best = precision > best_precision
-                is_lowest_loss = avg_loss < lowest_loss
-                best_precision = max(precision, best_precision)
-                lowest_loss = min(avg_loss, lowest_loss)
-                state = {
-                    'epoch': epoch,
-                    'state_dict': model.state_dict(),
-                    'best_precision': best_precision,
-                    'lowest_loss': lowest_loss,
-                }
-                save_checkpoint(state, epoch, is_best, is_lowest_loss, save_path)
+                    is_best = precision > best_precision
+                    is_lowest_loss = avg_loss < lowest_loss
+                    best_precision = max(precision, best_precision)
+                    lowest_loss = min(avg_loss, lowest_loss)
+                    state = {
+                        'epoch': epoch,
+                        'state_dict': model.state_dict(),
+                        'best_precision': best_precision,
+                        'lowest_loss': lowest_loss,
+                    }
+                    save_checkpoint(state, epoch, is_best, is_lowest_loss, save_path)
 
         writer.close()
         torch.cuda.empty_cache()
