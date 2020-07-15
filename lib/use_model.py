@@ -69,3 +69,12 @@ def choice_model(flag, num_classes):
         return ResNest_269(pretrained=True, num_classes=num_classes)
     elif flag == 'resnext101':
         return ResNesXt_101(pretrained=True, num_classes=num_classes)
+
+def resume_custom(config, model):
+    ch = torch.load(config.model.custom_checkpoint)
+    ch['state_dict'].pop('model.fc.weight')
+    ch['state_dict'].pop('model.fc.bias')
+    model_dict = model.state_dict()
+    model_dict.update(ch['state_dict'])
+    model.load_state_dict(model_dict)
+    return model

@@ -18,7 +18,7 @@ config.model.name = 'resnest50'
 config.model.num_classes = 15
 config.model.save_path = 'logs'
 config.model.checkpoint ='logs/resnext101/lowest.pth'
-config.model.custom_pretrain = True
+config.model.custom_pretrain = False
 config.model.custom_checkpoint = 'weights/fold0_lowest_loss.pth'
 
 

@@ -4,6 +4,7 @@ import shutil
 import time
 
 import apex
+from apex.parallel import DistributedDataParallel as DDP
 import numpy as np
 import pandas as pd
 import torch
@@ -17,11 +18,13 @@ from data.dataloader import create_dataloader
 from lib.optimizer import get_optimizer
 from lib.scheduler import CosineWarmupLr
 from lib.tensorboard import get_tensorboard_writer
-from lib.use_model import choice_model
+from lib.model import get_model
+from lib.use_model import choice_model, resume_custom
 from losses.losses import get_loss
 from utils.metrics import accuracy, AverageMeter, ProgressMeter
 from utils.save import save_checkpoint
 from utils.set_seed import set_seed
+from utils.get_rank import get_rank
 
 
 os.environ["CUDA_DEVICE_ORDER"] = 'PCI_BUS_ID'
@@ -30,6 +33,11 @@ os.environ["CUDA_DEVICE_ORDER"] = 'PCI_BUS_ID'
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--configs', type=str, default='c15',
                     help='the yml which include all parameters!')
+parser.add_argument('-n', '--nodes', default=1, type=int,
+                    help='mechine number')
+parser.add_argument('-g', '--gpus', default=1, type=int,
+                    help='number of gpus per node')
+parser.add_argument('--local_rank', type=int, default=0)
 args = parser.parse_args()
 
 torch.backends.cudnn.benchmark = True
@@ -42,7 +50,12 @@ def get_config():
     return config
 
 
-def train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, device, writer):
+def train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, writer):
+    global global_step
+    # switch to train mode
+    model.train()
+    device = torch.device(config.device)
+
     logger.info(f'Epoches: {epoch}/{config.train.epoches}')
 
     # mertric
@@ -51,14 +64,10 @@ def train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, 
     top1 = AverageMeter('Acc@1', ':6.2f')
     top5 = AverageMeter('Acc@5', ':6.2f')
     progress = ProgressMeter(len(train_loader), batch_time, losses, top1, top5)
-
-    # switch to train mode
-    model.train()
     end = time.time()
 
     # train
     for step, (images, targets) in enumerate(train_loader):
-        global global_step
         global_step += 1
         step += 1
 
@@ -80,31 +89,49 @@ def train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, 
         optimizer.step()
 
         acc1, acc5 = accuracy(outputs, targets, topk=(1, 5))
+        if config.dist:
+            loss_reduce = dist.all_reduce(loss, op=dist.ReduceOp.SUM, async_op=True)
+            acc1_reduce = dist.all_reduce(acc1, op=dist.ReduceOp.SUM, async_op=True)
+            acc5_reduce = dist.all_reduce(acc5, op=dist.ReduceOp.SUM, async_op=True)
+
+            loss_reduce.wait()
+            acc1_reduce.wait()
+            acc5_reduce.wait()
+
+            loss.div_(dist.get_world_size())
+            acc1.div_(dist.get_world_size())
+            acc5.div_(dist.get_world_size())
+
         batch_time.update(time.time() - end)
         losses.update(loss.item(), images.size(0))
         top1.update(acc1[0], images.size(0))
         top5.update(acc5[0], images.size(0))
 
-        if step % config.train.preiod == 0 or step == len(train_loader):
-            progress.pr2int(step)
+        if get_rank() == 0:
+            if step % config.train.preiod == 0 or step == len(train_loader):
+                progress.pr2int(step)
 
-        # add writer
-        writer.add_scalar('Train/Loss', losses.avg, global_step)
-        writer.add_scalar('Train/Acc-Top1', top1.avg, global_step)
-        writer.add_scalar('Train/Acc-Top5', top5.avg, global_step)
-        writer.add_scalar('Train/lr', scheduler.learning_rate, global_step)
+            # add writer
+            writer.add_scalar('Train/Loss', losses.avg, global_step)
+            writer.add_scalar('Train/Acc-Top1', top1.avg, global_step)
+            writer.add_scalar('Train/Acc-Top5', top5.avg, global_step)
+            writer.add_scalar('Train/lr', scheduler.learning_rate, global_step)
 
-        scheduler.step()
-        end = time.time()
+            scheduler.step()
+            end = time.time()
 
-def val(config, val_loader, model, val_loss, device, writer):
+
+def val(config, val_loader, model, val_loss, writer):
+    logger.info('Valid.......')
+
+    # switch to evaluate mode
+    model.eval()
+    device = torch.device(config.device)
+
     batch_time = AverageMeter('Time', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
     top1 = AverageMeter('Acc@1', ':6.2f')
     top5 = AverageMeter('Acc@2', ':6.2f')
-
-    # switch to evaluate mode
-    model.eval()
 
     with torch.no_grad():
         end = time.time()
@@ -122,6 +149,19 @@ def val(config, val_loader, model, val_loss, device, writer):
 
             # measure accuracy and record loss
             acc1, acc5 = accuracy(output, targets, topk=(1, 5))
+            if config.dist:
+                loss_reduce = dist.all_reduce(loss, op=dist.ReduceOp.SUM, async_op=True)
+                acc1_reduce = dist.all_reduce(acc1, op=dist.ReduceOp.SUM, async_op=True)
+                acc5_reduce = dist.all_reduce(acc5, op=dist.ReduceOp.SUM, async_op=True)
+
+                loss_reduce.wait()
+                acc1_reduce.wait()
+                acc5_reduce.wait()
+
+                loss.div_(dist.get_world_size())
+                acc1.div_(dist.get_world_size())
+                acc5.div_(dist.get_world_size())
+
             losses.update(loss.item(), images.size(0))
             top1.update(acc1[0], images.size(0))
             top5.update(acc5[0], images.size(0))
@@ -133,9 +173,10 @@ def val(config, val_loader, model, val_loss, device, writer):
         logger.info(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
                     .format(top1=top1, top5=top5))
         # add writer
-        writer.add_scalar('Validate/Loss', losses.avg, global_step)
-        writer.add_scalar('Validate/Acc-Top1', top1.avg, global_step)
-        writer.add_scalar('Validate/Acc-Top5', top5.avg, global_step)
+        if get_rank() == 0:
+            writer.add_scalar('Validate/Loss', losses.avg, global_step)
+            writer.add_scalar('Validate/Acc-Top1', top1.avg, global_step)
+            writer.add_scalar('Validate/Acc-Top5', top5.avg, global_step)
 
         if torch.cuda.is_available():
             return np.squeeze(top1.avg.cpu().numpy()), losses.avg
@@ -147,18 +188,37 @@ def main():
     config = get_config()
     device = torch.device(config.device)
     set_seed(config)
-    print(device)
 
     # dist
     if config.dist:
-        torch.cuda.set_device(config.dist_local_rank)
         dist.init_process_group(backend=config.dist_backend,
                                 init_method=config.dist_init_method)
+        torch.cuda.set_device(config.dist_local_rank)
 
-
+    # create log path
     val_log_file = os.path.join(config.val.log_file, data_time) + '/log.txt'
     writer_log_file = os.path.join(config.tensorboard.log_dir, data_time)
     save_path = os.path.join(config.model.save_path, data_time)
+
+    # model
+    model = get_model(config)
+
+    # optimizer
+    optimizer = get_optimizer(config, model)
+    if config.apex:
+        model, optimizer = apex.amp.initialize(model,
+                                               optimizer,
+                                               opt_level=config.apex_mode)
+
+    # loss
+    train_loss, val_loss = get_loss(config)
+
+    # tensorboard
+    if get_rank() == 0:
+        writer = get_tensorboard_writer(writer_log_file,
+                                        purge_step=None)
+    else:
+        writer = None
 
     data = pd.read_csv(config.train.dataset)
     skf = KFold(n_splits=10,shuffle=True, random_state=452)
@@ -170,8 +230,8 @@ def main():
         # split data
         train_data = data.iloc[train_idx]
         val_data = data.iloc[val_idx]
-
         print(val_data)
+
         logger.info(f'Now is traing fold {fold_idx + 1}')
         logger.info(f"Splited train set: {train_data.shape}")
         logger.info(f"Splited val set: {val_data.shape}")
@@ -180,40 +240,15 @@ def main():
         train_loader = create_dataloader(config, train_data, 'train')
         val_loader = create_dataloader(config, val_data, 'val')
 
-        # model
-        model = choice_model(config.model.name, config.model.num_classes)
-        if config.model.custom_pretrain:
-            ch = torch.load(config.model.custom_checkpoint)
-            ch['state_dict'].pop('model.fc.weight')
-            ch['state_dict'].pop('model.fc.bias')
-            model_dict = model.state_dict()
-            model_dict.update(ch['state_dict'])
-            model.load_state_dict(model_dict)
-        model.to(device)
-
-        # optimizer
-        optimizer = get_optimizer(config, model)
-        if config.apex:
-            model, optimizer = apex.amp.initialize(model,
-                                                   optimizer,
-                                                   opt_level=config.apex_mode)
-
         scheduler = CosineWarmupLr(config, optimizer, len(train_loader))
-
-        # loss
-        train_loss, val_loss = get_loss(config)
-
-        # tensorboard
-        writer = get_tensorboard_writer(writer_log_file,
-                                        purge_step=None)
 
         best_precision, lowest_loss = 0, 100
         for epoch in range(config.train.epoches):
             train(config, epoch, train_loader, model, optimizer,
-                  scheduler, train_loss, device, writer)
+                  scheduler, train_loss, writer)
 
             if epoch % config.train.val_preiod == 0:
-                precision, avg_loss = val(config, val_loader, model, val_loss, device, writer)
+                precision, avg_loss = val(config, val_loader, model, val_loss, writer)
 
                 with open(val_log_file, 'a') as acc_file:
                     acc_file.write(
