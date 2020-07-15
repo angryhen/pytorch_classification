@@ -1,31 +1,27 @@
 import argparse
 import os
-import shutil
 import time
 
 import apex
-from apex.parallel import DistributedDataParallel as DDP
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn as nn
 import torch.distributed as dist
 from alfred.utils.log import logger
 from sklearn.model_selection import KFold
 
 from configs.config import get_cfg_defaults
 from data.dataloader import create_dataloader
+from lib.model import get_model
 from lib.optimizer import get_optimizer
 from lib.scheduler import CosineWarmupLr
 from lib.tensorboard import get_tensorboard_writer
-from lib.model import get_model
-from lib.use_model import choice_model, resume_custom
 from losses.losses import get_loss
+from utils.get_rank import get_rank
 from utils.metrics import accuracy, AverageMeter, ProgressMeter
 from utils.save import save_checkpoint
 from utils.set_seed import set_seed
-from utils.get_rank import get_rank
-
+from utils.env_info import get_env_info
 
 os.environ["CUDA_DEVICE_ORDER"] = 'PCI_BUS_ID'
 
@@ -33,10 +29,6 @@ os.environ["CUDA_DEVICE_ORDER"] = 'PCI_BUS_ID'
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--configs', type=str, default='c15',
                     help='the yml which include all parameters!')
-parser.add_argument('-n', '--nodes', default=1, type=int,
-                    help='mechine number')
-parser.add_argument('-g', '--gpus', default=1, type=int,
-                    help='number of gpus per node')
 parser.add_argument('--local_rank', type=int, default=0)
 args = parser.parse_args()
 
@@ -55,6 +47,7 @@ def train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, 
     # switch to train mode
     model.train()
     device = torch.device(config.device)
+    print('device: ', device)
 
     logger.info(f'Epoches: {epoch}/{config.train.epoches}')
 
@@ -78,8 +71,8 @@ def train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, 
 
         outputs = model(images)
         optimizer.zero_grad()
-        loss = train_loss(outputs, targets)
 
+        loss = train_loss(outputs, targets)
         if config.apex:
             with apex.amp.scale_loss(loss, optimizer) as scaled_loss:
                 scaled_loss.backward()
@@ -117,8 +110,8 @@ def train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, 
             writer.add_scalar('Train/Acc-Top5', top5.avg, global_step)
             writer.add_scalar('Train/lr', scheduler.learning_rate, global_step)
 
-            scheduler.step()
-            end = time.time()
+        scheduler.step()
+        end = time.time()
 
 
 def val(config, val_loader, model, val_loss, writer):
@@ -186,13 +179,15 @@ def val(config, val_loader, model, val_loss, writer):
 
 def main():
     config = get_config()
-    device = torch.device(config.device)
     set_seed(config)
+    logger.info(get_env_info())
+
 
     # dist
     if config.dist:
         dist.init_process_group(backend=config.dist_backend,
-                                init_method=config.dist_init_method)
+                                init_method=config.dist_init_method,
+                                )
         torch.cuda.set_device(config.dist_local_rank)
 
     # create log path
@@ -215,8 +210,7 @@ def main():
 
     # tensorboard
     if get_rank() == 0:
-        writer = get_tensorboard_writer(writer_log_file,
-                                        purge_step=None)
+        writer = get_tensorboard_writer(writer_log_file, purge_step=None)
     else:
         writer = None
 
@@ -244,8 +238,7 @@ def main():
 
         best_precision, lowest_loss = 0, 100
         for epoch in range(config.train.epoches):
-            train(config, epoch, train_loader, model, optimizer,
-                  scheduler, train_loss, writer)
+            train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, writer)
 
             if epoch % config.train.val_preiod == 0:
                 precision, avg_loss = val(config, val_loader, model, val_loss, writer)

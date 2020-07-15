@@ -39,7 +39,7 @@ config.train.preiod = 10
 config.train.val_preiod = 1
 config.train.resume = True
 config.train.label_smooth = False
-config.train.seed = 42
+config.train.seed = 0
 
 # train -- optimizer
 config.train.optimizer = CN()
