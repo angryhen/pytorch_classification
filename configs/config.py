@@ -10,7 +10,7 @@ config.dist = False
 config.dist_backend = 'nccl'
 config.dist_init_method = 'env://'
 config.dist_local_rank = 0
-
+config.dist_sync_bn = True
 
 # model
 config.model = CN()
