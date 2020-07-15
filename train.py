@@ -188,7 +188,8 @@ def main():
         dist.init_process_group(backend=config.dist_backend,
                                 init_method=config.dist_init_method,
                                 )
-        torch.cuda.set_device(config.dist_local_rank)
+        # torch.cuda.set_device(config.dist_local_rank)
+        torch.cuda.set_device(args.local_rank)
 
     # create log path
     val_log_file = os.path.join(config.val.log_file, data_time) + '/log.txt'
@@ -196,7 +197,7 @@ def main():
     save_path = os.path.join(config.model.save_path, data_time)
 
     # model
-    model = get_model(config)
+    model = get_model(config, args.local_rank)
 
     # optimizer
     optimizer = get_optimizer(config, model)
