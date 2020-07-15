@@ -182,6 +182,13 @@ def main():
 
         # model
         model = choice_model(config.model.name, config.model.num_classes)
+        if config.model.custom_pretrain:
+            ch = torch.load(config.model.custom_checkpoint)
+            ch['state_dict'].pop('model.fc.weight')
+            ch['state_dict'].pop('model.fc.bias')
+            model_dict = model.state_dict()
+            model_dict.update(ch['state_dict'])
+            model.load_state_dict(model_dict)
         model.to(device)
 
         # optimizer

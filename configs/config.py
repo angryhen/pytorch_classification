@@ -14,17 +14,19 @@ config.dist_local_rank = 0
 
 # model
 config.model = CN()
-config.model.name = 'resnext101'
+config.model.name = 'resnest50'
 config.model.num_classes = 15
 config.model.save_path = 'logs'
-config.model.checkpoint ='logs/2020-07-14 14:12:43/44.pth'
+config.model.checkpoint ='logs/resnext101/lowest.pth'
+config.model.custom_pretrain = True
+config.model.custom_checkpoint = 'weights/fold0_lowest_loss.pth'
 
 
 # train
 config.train = CN()
 config.train.dataset = '/home/du/Desktop/work_project/TBox-server-dh/classification/ResNeSt/scripts/dbox_c15_dedup.csv'
 config.train.img_size = 224
-config.train.batch_size = 16
+config.train.batch_size = 48
 config.train.num_classes = 15
 config.train.epoches = 50
 config.train.mean = [0.485, 0.456, 0.406]
@@ -34,7 +36,7 @@ config.train.fold = 1
 config.train.checkpoint = f'logs/{config.model.name}'
 config.train.subdivision = 1
 config.train.preiod = 10
-config.train.val_preiod = 2
+config.train.val_preiod = 1
 config.train.resume = True
 config.train.label_smooth = False
 config.train.seed = 42
@@ -85,7 +87,7 @@ config.val.dataloader.non_blocking = True
 
 # test
 config.test = CN()
-config.test.dataset = '/home/du/Desktop/work_project/TBox-server-dh/classification/ResNeSt/scripts/old_val_ibox.csv'
+config.test.dataset = '/home/du/Desktop/work_project/TBox-server-dh/classification/ResNeSt/scripts/new_val_dbox.csv'
 config.test.batch_size = 64 * 4
 config.test.img_size = 224
 config.test.mean = [0.485, 0.456, 0.406]

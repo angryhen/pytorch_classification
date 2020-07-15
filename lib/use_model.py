@@ -6,71 +6,57 @@ from model.resnest.torch import resnest50, resnest101, resnest200, resnest269
 class ResNest_50(nn.Module):
     def __init__(self, pretrained, num_classes):
         super(ResNest_50, self).__init__()
-        model = resnest50(pretrained=pretrained)
-        model.fc = nn.Sequential(
-            nn.Linear(2048, num_classes, bias=True),
-        )
-        self.net = model
+        self.model = resnest50(pretrained=pretrained)
+        self.model.fc = nn.Linear(2048, num_classes, bias=True)
 
     def forward(self, img):
-        output = self.net(img)
+        output = self.model(img)
         return output
-
 
 
 class ResNest_101(nn.Module):
     def __init__(self, pretrained, num_classes):
         super(ResNest_101, self).__init__()
-        model = resnest101(pretrained=pretrained)
-        model.fc = nn.Sequential(
-            nn.Linear(2048, num_classes, bias=True),
-        )
-        self.net = model
+        self.model = resnest50(pretrained=pretrained)
+        self.model.fc = nn.Linear(2048, num_classes, bias=True)
 
     def forward(self, img):
-        output = self.net(img)
+        output = self.model(img)
         return output
 
 
 class ResNest_200(nn.Module):
     def __init__(self, pretrained, num_classes):
         super(ResNest_200, self).__init__()
-        model = resnest200(pretrained=pretrained)
-        model.fc = nn.Sequential(
-            nn.Linear(2048, num_classes, bias=True),
-        )
-        self.net = model
+        self.model = resnest200(pretrained=pretrained)
+        self.model.fc = nn.Linear(2048, num_classes, bias=True)
 
     def forward(self, img):
-        output = self.net(img)
+        output = self.model(img)
         return output
 
 
 class ResNest_269(nn.Module):
     def __init__(self, pretrained, num_classes):
         super(ResNest_269, self).__init__()
-        model = resnest269(pretrained=pretrained)
-        model.fc = nn.Sequential(
-            nn.Linear(2048, num_classes, bias=True),
-        )
-        self.net = model
+        self.model = resnest50(pretrained=pretrained)
+        self.model.fc = nn.Linear(2048, num_classes, bias=True)
 
     def forward(self, img):
-        output = self.net(img)
+        output = self.model(img)
         return output
+
 
 class ResNesXt_101(nn.Module):
     def __init__(self, pretrained, num_classes):
         super(ResNesXt_101, self).__init__()
-        model = torch.hub.load('facebookresearch/WSL-Images', 'resnext101_32x8d_wsl')
-        model.fc = nn.Sequential(
-            nn.Linear(2048, num_classes, bias=True),
-        )
-        self.net = model
+        self.model = torch.hub.load('facebookresearch/WSL-Images', 'resnext101_32x8d_wsl')
+        self.model.fc = nn.Linear(2048, num_classes, bias=True)
 
     def forward(self, img):
-        output = self.net(img)
+        output = self.model(img)
         return output
+
 
 def choice_model(flag, num_classes):
     if flag == 'resnest50':
