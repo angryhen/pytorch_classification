@@ -3,9 +3,11 @@ import os
 import time
 
 import apex
+from apex.parallel import convert_syncbn_model, DistributedDataParallel as DDP
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 import torch.distributed as dist
 from alfred.utils.log import logger
 from sklearn.model_selection import KFold
@@ -27,7 +29,7 @@ os.environ["CUDA_DEVICE_ORDER"] = 'PCI_BUS_ID'
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-c', '--configs', type=str, default='c15',
+parser.add_argument('-c', '--configs', type=str, default=None,
                     help='the yml which include all parameters!')
 parser.add_argument('--local_rank', type=int, default=0)
 args = parser.parse_args()
@@ -39,6 +41,11 @@ data_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
 def get_config():
     config = get_cfg_defaults()
+    if args.configs:
+        yml_file = args.configs
+        config.merge_from_file(yml_file)
+    config.merge_from_list(['config.dist_local_rank', args.local_rank])
+    config.freeze()
     return config
 
 
@@ -188,8 +195,7 @@ def main():
     # dist
     if config.dist:
         dist.init_process_group(backend=config.dist_backend,
-                                init_method=config.dist_init_method,
-                                )
+                                init_method=config.dist_init_method)
         # torch.cuda.set_device(config.dist_local_rank)
         torch.cuda.set_device(args.local_rank)
 
@@ -199,15 +205,28 @@ def main():
     save_path = os.path.join(config.model.save_path, data_time)
 
     # model
-    model = get_model(config, args.local_rank)
+    model = get_model(config)
 
     # optimizer
     optimizer = get_optimizer(config, model)
+
     if config.apex:
         model, optimizer = apex.amp.initialize(model,
                                                optimizer,
                                                opt_level=config.apex_mode)
 
+    if config.dist:
+        if config.dist_sync_bn:
+            if config.apex:
+                model = convert_syncbn_model(model)
+            else:
+                model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
+        if config.apex:
+            model = DDP(model,delay_allreduce=True)
+        else:
+            model = nn.parallel.DistributedDataParallel(model,
+                                                        device_ids=[config.dist_local_rank],
+                                                        output_device=config.dist_local_rank)
     # loss
     train_loss, val_loss = get_loss(config)
 
@@ -241,6 +260,7 @@ def main():
 
         best_precision, lowest_loss = 0, 100
         for epoch in range(config.train.epoches):
+            train_loader.sampler.set_epoch(epoch)
             train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, writer)
 
             if epoch % config.train.val_preiod == 0:

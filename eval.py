@@ -17,8 +17,12 @@ from lib.use_model import choice_model
 
 
 # load yml_file
-def get_config():
+def get_config(args):
     config = get_cfg_defaults()
+    if args.configs:
+        yml_file = args.configs
+        config.merge_from_file(yml_file)
+    config.freeze()
     return config
 
 
@@ -83,19 +87,20 @@ def test_csv(val_loader, model, target_names, half=False):
     return result
 
 if __name__ == '__main__':
-    paser = argparse.ArgumentParser(description='ResNeSt for image classification')
-
-    paser.add_argument('--image', type=str,
+    parser = argparse.ArgumentParser(description='ResNeSt for image classification')
+    parser.add_argument('-c', '--configs', type=str, default=None,
+                        help='the yml which include all parameters!')
+    parser.add_argument('--image', type=str,
                        default=None,
                        help='your image path')
-    paser.add_argument('--csv', type=str,
+    parser.add_argument('--csv', type=str,
                        default=1,
                        help='in oder to test all image')
-    args = paser.parse_args()
+    args = parser.parse_args()
 
-    config = get_config()
+    config = get_config(args)
+
     device = torch.device(config.device)
-
     models = load_model(config)
     models.eval()
 
@@ -103,7 +108,6 @@ if __name__ == '__main__':
     if args.image:
         result = single_image(args.image, models)
         print('result:', result, 'label:', config.labels[int(result)])
-
     else:
         print('single image: None')
 

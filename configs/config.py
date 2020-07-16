@@ -10,12 +10,12 @@ config.dist = False
 config.dist_backend = 'nccl'
 config.dist_init_method = 'env://'
 config.dist_local_rank = 0
-config.dist_sync_bn = True
+config.dist_sync_bn = False
 
 # model
 config.model = CN()
 config.model.name = 'resnest50'
-config.model.num_classes = 15
+config.model.num_classes = 6
 config.model.save_path = 'logs'
 config.model.checkpoint ='logs/resnext101/lowest.pth'
 config.model.custom_pretrain = False
@@ -24,10 +24,10 @@ config.model.custom_checkpoint = 'weights/fold0_lowest_loss.pth'
 
 # train
 config.train = CN()
-config.train.dataset = '/home/du/Desktop/work_project/TBox-server-dh/classification/ResNeSt/scripts/dbox_c15_dedup.csv'
+config.train.dataset = '/home/du/Desktop/work_project/TBox-server-dh/classification/ResNeSt/scripts/tbox_shape_train.csv'
 config.train.img_size = 224
 config.train.batch_size = 48
-config.train.num_classes = 15
+config.train.num_classes = 6
 config.train.epoches = 50
 config.train.mean = [0.485, 0.456, 0.406]
 config.train.std = [0.229, 0.224, 0.225]
@@ -105,8 +105,9 @@ config.tensorboard = CN()
 config.tensorboard.log_dir = 'logs'
 
 # label
-# config.labels = {0: 'hzy-hzy-pz-bxgw-500ml', 1: 'ty-hzy-pz-gw-500ml', 2: 'ty-tyxmtx-pz-lplldc-480ml', 3: 'ty-tylythsnr-tz-hsnrw-105g', 4: 'tdr-tdrstglm-tz-yw-83g', 5: 'ty-tyxmtx-pz-lpqnhc-480ml', 6: 'asm-asmnc-pz-yw-500ml', 7: 'ty-qbsds-pz-nmw-500ml', 8: 'ty-tync-pz-mxw-310ml', 9: 'yh-yhbkf-pz-yw-450ml', 10: 'ty-tybhc-pz-nmw-500ml', 11: 'ty-tylc-pz-mlw-500ml', 12: 'ty-tyhsnrm-tz-nr-105g', 13: 'tdr-tdrsslltgm-tz-yw-90g', 14: 'ty-tyhld-gz-xclc-310ml'}
-config.labels_list = ['hzy-hzy-pz-bxgw-500ml', 'ty-hzy-pz-gw-500ml', 'ty-tyxmtx-pz-lplldc-480ml', 'ty-tylythsnr-tz-hsnrw-105g', 'tdr-tdrstglm-tz-yw-83g', 'ty-tyxmtx-pz-lpqnhc-480ml', 'asm-asmnc-pz-yw-500ml', 'ty-qbsds-pz-nmw-500ml', 'ty-tync-pz-mxw-310ml', 'yh-yhbkf-pz-yw-450ml', 'ty-tybhc-pz-nmw-500ml', 'ty-tylc-pz-mlw-500ml', 'ty-tyhsnrm-tz-nr-105g', 'tdr-tdrsslltgm-tz-yw-90g', 'ty-tyhld-gz-xclc-310ml']
+# config.labels = {}
+config.labels_list = ['tz', 'dz', 'pz', 'hz', 'bz', 'gz']
+
 
 
 def get_cfg_defaults():
