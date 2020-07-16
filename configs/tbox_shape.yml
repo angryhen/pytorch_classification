@@ -1,0 +1,28 @@
+model:
+  name: resnest50
+  num_classes: 6
+  custom_pretrain: False
+  custom_checkpoint: weights/fold0_lowest_loss.pth
+  checkpoint: 'logs/2020-07-16 10:47:12/best.pth'  # for test
+
+train:
+  dataset: /home/du/Desktop/work_project/TBox-server-dh/classification/ResNeSt/scripts/tbox_shape.csv
+  num_classes: 6
+  batch_size: 64
+  epoches: 50
+  label_smooth: False
+  preiod: 10
+  val_preiod: 2
+
+  scheduler:
+    method: cosine
+    base_lr: 1e-4
+    min_lr: 1e-7
+
+test:
+  dataset: /home/du/Desktop/work_project/TBox-server-dh/classification/ResNeSt/scripts/tbox_shape_test.csv
+  batch_size: 64
+
+# label
+#labels: {0: 'tz', 1: 'dz', 2: 'pz', 3: 'hz', 4: 'bz', 5: 'gz'}
+labels_list: ['tz', 'dz', 'pz', 'hz', 'bz', 'gz']
