@@ -1,40 +1,25 @@
-import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 
-def onehot_encoding(label, n_classes):
-    return torch.zeros(label.size(0), n_classes).to(label.device).scatter_(
-        1, label.view(-1, 1), 1)
+class LabelSmoothingCELoss(nn.Module):
+    """
+    NLL loss with label smoothing.
+    """
+    def __init__(self, smoothing=0.1):
+        """
+        Constructor for the LabelSmoothing module.
+        :param smoothing: label smoothing factor
+        """
+        super(LabelSmoothingCELoss, self).__init__()
+        assert smoothing < 1.0
+        self.smoothing = smoothing
+        self.confidence = 1. - smoothing
 
-
-def cross_entropy_loss(data, target,
-                       reduction):
-    logp = F.log_softmax(data, dim=1)
-    loss = torch.sum(-logp * target, dim=1)
-    if reduction == 'none':
-        return loss
-    elif reduction == 'mean':
+    def forward(self, x, target):
+        logprobs = F.log_softmax(x, dim=-1)
+        nll_loss = -logprobs.gather(dim=-1, index=target.unsqueeze(1))
+        nll_loss = nll_loss.squeeze(1)
+        smooth_loss = -logprobs.mean(dim=-1)
+        loss = self.confidence * nll_loss + self.smoothing * smooth_loss
         return loss.mean()
-    elif reduction == 'sum':
-        return loss.sum()
-    else:
-        raise ValueError(
-            '`reduction` must be one of \'none\', \'mean\', or \'sum\'.')
-
-
-class LabelSmoothingLoss:
-    def __init__(self, config, reduction):
-        self.n_classes = config.model.num_classes
-        self.epsilon = 0.1
-        self.reduction = reduction
-
-    def __call__(self, predictions,
-                 targets):
-        device = predictions.device
-
-        onehot = onehot_encoding(
-            targets, self.n_classes).type_as(predictions).to(device)
-        targets = onehot * (1 - self.epsilon) + torch.ones_like(onehot).to(
-            device) * self.epsilon / self.n_classes
-        loss = cross_entropy_loss(predictions, targets, self.reduction)
-        return loss

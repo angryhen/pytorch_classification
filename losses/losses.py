@@ -2,11 +2,11 @@ import torch.nn as nn
 import torch
 from losses.focal_loss import FocalLoss
 from losses.mixup_loss import MixupLoss, SoftTargetLoss
-from losses.smoothing_loss import LabelSmoothingLoss
+from losses.smoothing_loss import LabelSmoothingCELoss
 
 def get_loss(config):
     if config.train.label_smooth:
-        train_loss = LabelSmoothingLoss(config, 'mean')
+        train_loss = LabelSmoothingCELoss(config.train.label_smooth)
     elif config.train.collator.type == 'mixup':
         train_loss = MixupLoss()
     elif config.train.collator.type == 'mixup2':
