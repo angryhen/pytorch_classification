@@ -3,16 +3,16 @@ model:
   num_classes: 6
   custom_pretrain: False
   custom_checkpoint: weights/fold0_lowest_loss.pth
-  checkpoint: 'logs/2020-07-16 10:47:12/best.pth'  # for test
+  checkpoint: 'logs/2020-07-16 10:47:12/lowest.pth'  # for test
 
 train:
-  dataset: /home/du/Desktop/work_project/TBox-server-dh/classification/ResNeSt/scripts/tbox_shape.csv
+  dataset: /home/du/Desktop/work_project/TBox-server-dh/classification/ResNeSt/scripts/tbox_shape_train.csv
   num_classes: 6
   batch_size: 64
-  epoches: 50
-  label_smooth: False
+  epoches: 30
+  label_smooth: 0.1
   preiod: 10
-  val_preiod: 2
+  val_preiod: 1
 
   scheduler:
     method: cosine

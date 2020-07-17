@@ -94,7 +94,7 @@ if __name__ == '__main__':
                        default=None,
                        help='your image path')
     parser.add_argument('--csv', type=str,
-                       default=1,
+                       default=None,
                        help='in oder to test all image')
     args = parser.parse_args()
 
@@ -107,7 +107,8 @@ if __name__ == '__main__':
     # predict single image
     if args.image:
         result = single_image(args.image, models)
-        print('result:', result, 'label:', config.labels[int(result)])
+        print('result:', result)
+        # print('result:', result, 'label:', config.labels[int(result)])
     else:
         print('single image: None')
 

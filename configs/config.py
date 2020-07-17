@@ -37,7 +37,7 @@ config.train.checkpoint = f'logs/{config.model.name}'
 config.train.subdivision = 1
 config.train.preiod = 10
 config.train.val_preiod = 1
-config.train.label_smooth = False
+config.train.label_smooth = 0.
 config.train.seed = 0
 
 # train -- optimizer
@@ -97,7 +97,7 @@ config.test.log_file = 'logs/test_result.txt'
 config.test.dataloader = CN()
 config.test.dataloader.work_nums = 8
 config.test.dataloader.drop_last = False
-config.test.dataloader.pin_memory = False  # False when memory not enough
+config.test.dataloader.pin_memory = True  # False when memory not enough
 config.test.dataloader.non_blocking = True
 
 # tensorboard
@@ -106,6 +106,8 @@ config.tensorboard.log_dir = 'logs'
 
 # label
 # config.labels = {}
+labels = {0: 'tz', 1: 'dz', 2: 'pz', 3: 'hz', 4: 'bz', 5: 'gz'}
+
 config.labels_list = ['tz', 'dz', 'pz', 'hz', 'bz', 'gz']
 
 

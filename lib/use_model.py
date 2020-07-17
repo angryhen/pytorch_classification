@@ -17,7 +17,7 @@ class ResNest_50(nn.Module):
 class ResNest_101(nn.Module):
     def __init__(self, pretrained, num_classes):
         super(ResNest_101, self).__init__()
-        self.model = resnest50(pretrained=pretrained)
+        self.model = resnest101(pretrained=pretrained)
         self.model.fc = nn.Linear(2048, num_classes, bias=True)
 
     def forward(self, img):
@@ -39,7 +39,7 @@ class ResNest_200(nn.Module):
 class ResNest_269(nn.Module):
     def __init__(self, pretrained, num_classes):
         super(ResNest_269, self).__init__()
-        self.model = resnest50(pretrained=pretrained)
+        self.model = resnest269(pretrained=pretrained)
         self.model.fc = nn.Linear(2048, num_classes, bias=True)
 
     def forward(self, img):

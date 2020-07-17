@@ -44,7 +44,7 @@ def get_config():
     if args.configs:
         yml_file = args.configs
         config.merge_from_file(yml_file)
-    config.merge_from_list(['config.dist_local_rank', args.local_rank])
+    config.merge_from_list(['dist_local_rank', args.local_rank])
     config.freeze()
     return config
 
@@ -260,7 +260,8 @@ def main():
 
         best_precision, lowest_loss = 0, 100
         for epoch in range(config.train.epoches):
-            train_loader.sampler.set_epoch(epoch)
+            if config.dist:
+                train_loader.sampler.set_epoch(epoch)
             train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, writer)
 
             if epoch % config.train.val_preiod == 0:

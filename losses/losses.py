@@ -6,7 +6,7 @@ from losses.smoothing_loss import LabelSmoothingCELoss
 
 def get_loss(config):
     if config.train.label_smooth:
-        train_loss = LabelSmoothingCELoss(config.train.label_smooth)
+        train_loss = LabelSmoothingCELoss(config)
     elif config.train.collator.type == 'mixup':
         train_loss = MixupLoss()
     elif config.train.collator.type == 'mixup2':
