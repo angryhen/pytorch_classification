@@ -51,6 +51,7 @@ def get_config():
 
 def train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, writer):
     global global_step
+
     # switch to train mode
     model.train()
     device = torch.device(config.device)
@@ -189,20 +190,29 @@ def val(config, val_loader, model, val_loss, writer):
 def main():
     config = get_config()
     set_seed(config)
-    logger.info(get_env_info())
 
+    if get_rank() == 0:
+        logger.info(get_env_info())
+        logger.info(f'Distributed: {config.dist},'
+                    f'Apex: {config.apex},'
+                    f'Sync_bn: {config.dist_sync_bn}')
 
     # dist
     if config.dist:
         dist.init_process_group(backend=config.dist_backend,
                                 init_method=config.dist_init_method)
-        # torch.cuda.set_device(config.dist_local_rank)
-        torch.cuda.set_device(args.local_rank)
+        torch.cuda.set_device(config.dist_local_rank)
 
     # create log path
-    val_log_file = os.path.join(config.val.log_file, data_time) + '/log.txt'
-    writer_log_file = os.path.join(config.tensorboard.log_dir, data_time)
-    save_path = os.path.join(config.model.save_path, data_time)
+    val_log_file = os.path.join(config.log_dir, data_time) + '/log.txt'
+    writer_log_file = os.path.join(config.log_dir, data_time)
+    save_path = os.path.join(config.log_dir, data_time)
+
+    # tensorboard
+    if get_rank() == 0:
+        writer = get_tensorboard_writer(writer_log_file, purge_step=None)
+    else:
+        writer = None
 
     # model
     model = get_model(config)
@@ -227,14 +237,9 @@ def main():
             model = nn.parallel.DistributedDataParallel(model,
                                                         device_ids=[config.dist_local_rank],
                                                         output_device=config.dist_local_rank)
+
     # loss
     train_loss, val_loss = get_loss(config)
-
-    # tensorboard
-    if get_rank() == 0:
-        writer = get_tensorboard_writer(writer_log_file, purge_step=None)
-    else:
-        writer = None
 
     data = pd.read_csv(config.train.dataset)
     skf = KFold(n_splits=10,shuffle=True, random_state=452)
@@ -246,11 +251,9 @@ def main():
         # split data
         train_data = data.iloc[train_idx]
         val_data = data.iloc[val_idx]
-        print(val_data)
-
-        logger.info(f'Now is traing fold {fold_idx + 1}')
-        logger.info(f"Splited train set: {train_data.shape}")
-        logger.info(f"Splited val set: {val_data.shape}")
+        if get_config()==0:
+            logger.info(f"Splited train set: {train_data.shape}")
+            logger.info(f"Splited val set: {val_data.shape}")
 
         # create dataloader
         train_loader = create_dataloader(config, train_data, 'train')
@@ -260,8 +263,8 @@ def main():
 
         best_precision, lowest_loss = 0, 100
         for epoch in range(config.train.epoches):
-            if config.dist:
-                train_loader.sampler.set_epoch(epoch)
+            # if config.dist:
+            #     train_loader.sampler.set_epoch(epoch)
             train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, writer)
 
             if epoch % config.train.val_preiod == 0:

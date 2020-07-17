@@ -5,6 +5,8 @@ config.device = 'cuda'
 config.apex = False
 config.apex_mode = 'O1'  #  "O0", "O1", "O2", and "O3"
 
+config.log_dir = 'logs'
+
 # dist
 config.dist = False
 config.dist_backend = 'nccl'
@@ -16,7 +18,6 @@ config.dist_sync_bn = False
 config.model = CN()
 config.model.name = 'resnest50'
 config.model.num_classes = 6
-config.model.save_path = 'logs'
 config.model.checkpoint ='logs/resnext101/lowest.pth'
 config.model.custom_pretrain = False
 config.model.custom_checkpoint = 'weights/fold0_lowest_loss.pth'
@@ -42,7 +43,7 @@ config.train.seed = 0
 
 # train -- optimizer
 config.train.optimizer = CN()
-config.train.optimizer.method = 'adam'
+config.train.optimizer.method = 'adam'  # ['adam', 'sgd']
 
 # train -- scheduler
 config.train.scheduler = CN()
@@ -75,7 +76,6 @@ config.val.batch_size = 64
 config.val.img_size = 224
 config.val.mean = [0.485, 0.456, 0.406]
 config.val.std = [0.229, 0.224, 0.225]
-config.val.log_file = 'logs'
 
 # valid --dataloader
 config.val.dataloader = CN()
@@ -102,7 +102,6 @@ config.test.dataloader.non_blocking = True
 
 # tensorboard
 config.tensorboard = CN()
-config.tensorboard.log_dir = 'logs'
 
 # label
 # config.labels = {}

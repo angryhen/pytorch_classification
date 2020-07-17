@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from model.resnest.torch import resnest50, resnest101, resnest200, resnest269
-
+import collections
 
 class ResNest_50(nn.Module):
     def __init__(self, pretrained, num_classes):
@@ -72,9 +72,27 @@ def choice_model(flag, num_classes):
 
 def resume_custom(config, model):
     ch = torch.load(config.model.custom_checkpoint)
-    ch['state_dict'].pop('model.fc.weight')
-    ch['state_dict'].pop('model.fc.bias')
+    ans = collections.OrderedDict()
+    for k, v in ch['state_dict'].items():
+        ind = k.find('model')
+        ans[k[ind:]] = v
+
+    ans.pop('model.fc.weight')
+    ans.pop('model.fc.bias')
     model_dict = model.state_dict()
-    model_dict.update(ch['state_dict'])
+    model_dict.update(ans)
     model.load_state_dict(model_dict)
     return model
+
+if __name__ == '__main__':
+    import collections
+
+    checkpoint = '/home/du/Desktop/my_project/pytorch_classification/logs/2020-07-17 15:44:25/2.pth'
+    ch = torch.load(checkpoint)
+    ans = collections.OrderedDict()
+    for k, v in ch['state_dict'].items():
+        ind = k.find('model')
+        ans[k[ind:]] = v
+        # print(k,v)
+
+    print(ch)

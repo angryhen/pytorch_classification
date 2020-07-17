@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 
 
-class LabelSmoothingCELoss1(nn.Module):
+class LabelSmoothingCELoss(nn.Module):
     """
     NLL loss with label smoothing.
     """
@@ -13,7 +13,7 @@ class LabelSmoothingCELoss1(nn.Module):
         :param smoothing: label smoothing factor
         """
         super(LabelSmoothingCELoss, self).__init__()
-        assert smoothing < 1.0
+        assert config.train.label_smooth < 1.0
         self.smoothing = config.train.label_smooth
         self.confidence = 1. - config.train.label_smooth
         print(f'using labelsmoothing ! smoothing: {config.train.label_smooth}')
@@ -25,6 +25,7 @@ class LabelSmoothingCELoss1(nn.Module):
         smooth_loss = -logprobs.mean(dim=-1)
         loss = self.confidence * nll_loss + self.smoothing * smooth_loss
         return loss.mean()
+
 
 @torch.no_grad()
 def smooth_one_hot(true_labels: torch.Tensor, classes: int, smoothing=0.0):
@@ -42,12 +43,12 @@ def smooth_one_hot(true_labels: torch.Tensor, classes: int, smoothing=0.0):
     smooth_label.scatter_(1, true_labels.data.unsqueeze(1), confidence)
     return smooth_label
 
-class LabelSmoothingCELoss(nn.Module):
+class LabelSmoothingCELoss_2(nn.Module):
     """This is label smoothing loss function.
     """
 
     def __init__(self, config, dim=-1):
-        super(LabelSmoothingCELoss, self).__init__()
+        super(LabelSmoothingCELoss_2, self).__init__()
         self.confidence = 1.0 - config.train.label_smooth
         self.smoothing = config.train.label_smooth
         self.cls = config.model.num_classes
@@ -57,4 +58,5 @@ class LabelSmoothingCELoss(nn.Module):
     def forward(self, pred, target):
         pred = pred.log_softmax(dim=self.dim)
         true_dist = smooth_one_hot(target, self.cls, self.smoothing)
+
         return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))

@@ -27,10 +27,10 @@ def mixup_batch(input, target, alpha=0.2, num_classes=1000, smoothing=0.1, disab
 
 
 class FastCollateMixup:
-    def __init__(self, config, label_smoothing=0.1):
+    def __init__(self, config):
         self.mixup_alpha = config.train.collator.mixup_alpha
-        self.label_smoothing = label_smoothing
-        self.num_classes = config.train.num_classes
+        self.label_smoothing = config.train.label_smooth
+        self.num_classes = config.model.num_classes
         self.mixup_enabled = True
 
     def __call__(self, batch):
@@ -43,23 +43,11 @@ class FastCollateMixup:
         target = mixup_target(target, self.num_classes, lam, self.label_smoothing, device='cpu')
 
         tensor = torch.zeros((batch_size, *batch[0][0].shape), dtype=torch.uint8)
-        # for i in range(batch_size):
-        #     mixed = batch[i][0].astype(np.float32) * lam + \
-        #             batch[batch_size - i - 1][0].astype(np.float32) * (1 - lam)
-        #     np.round(mixed, out=mixed)
-        #     tensor[i] += torch.from_numpy(mixed.astype(np.uint8))
 
         for i in range(batch_size):
             mixed = batch[i][0].numpy().astype(np.float32) * lam + \
                     batch[batch_size - i - 1][0].numpy().astype(np.float32) * (1 - lam)
-            # # np.round(mixed, out=mixed)
-            # mixed1 = mixed.astype(np.uint8)
-            # mixed1 = np.transpose(mixed1, (1,2,0))
-            # mixed1 = cv2.cvtColor(mixed1,cv2.COLOR_RGB2BGR)
-            # # cv2.imshow('test', mixed1)
-            # # cv2.waitKey(0)
             tensor[i] += torch.from_numpy(mixed.astype(np.uint8))
-        tensor = tensor.type(torch.FloatTensor)
 
         return tensor, target
 
@@ -123,7 +111,7 @@ def cutmix(batch, alpha):
 
 
 def get_collate_fn(config):
-    if config.train.collator.type == 'mixup':
+    if config.train.collator.type == 'mixup1':
         return MixupCollator(config)
     elif config.train.collator.type == 'mixup2':
         return FastCollateMixup(config)

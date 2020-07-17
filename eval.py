@@ -22,6 +22,8 @@ def get_config(args):
     if args.configs:
         yml_file = args.configs
         config.merge_from_file(yml_file)
+    if args.csv is not None:
+        config.merge_from_list(['test.dataset', args.csv])
     config.freeze()
     return config
 
@@ -112,7 +114,7 @@ if __name__ == '__main__':
     else:
         print('single image: None')
 
-    if args.csv:
+    if config.test.dataset:
         # skf = KFold(n_splits=0)
         test_data = pd.read_csv(config.test.dataset)
         logger.info(f"test set: {test_data.shape}")
