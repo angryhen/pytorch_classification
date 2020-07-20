@@ -68,6 +68,7 @@ instance/
 *.h5
 *.pth
 *.pth.tar
+*.onnx
 
 logs
 
