@@ -7,40 +7,7 @@ from albumentations.pytorch import ToTensorV2
 
 def create_transform(config, mode):
     if mode == 'train':
-        transforms = Compose([
-                    Resize(256, 256),
-                    HorizontalFlip(),
-                    Transpose(),
-                    CoarseDropout(p=0.3),
-                    OneOf([
-                        RandomBrightnessContrast(brightness_limit=0.6),
-                        RandomGamma(),
-                    ], p=0.6),
-                    ShiftScaleRotate(rotate_limit=45),  # 75
-                    OneOf([
-                        CLAHE(p=0.5),
-                        GaussianBlur(3, p=0.3),
-                        IAASharpen(alpha=(0.2, 0.3), p=0.3),
-                    ], p=1),  # 1
-                    OneOf([
-                        # 畸变相关操作
-                        OpticalDistortion(p=0.3),
-                        GridDistortion(p=0.2),
-                        IAAPiecewiseAffine(p=0.3),
-                    ], p=0.2),
-                    # add
-                    OneOf([
-                        MotionBlur(p=0.3),
-                        MedianBlur(blur_limit=3, p=0.3),
-                        Blur(blur_limit=3, p=0.3),
-                    ], p=0.8),
-                    Normalize(
-                        mean=config.train.mean,
-                        std=config.train.std,
-                    ),
-                    RandomCrop(config.train.img_size, config.train.img_size),
-                    ToTensorV2(),
-                ])
+        transforms = train_compose(config)
     elif mode == 'val':
         transforms = Compose([
             Resize(config.val.img_size, config.val.img_size),
@@ -60,3 +27,55 @@ def create_transform(config, mode):
             ToTensorV2()
         ])
     return transforms
+
+
+def train_compose(config):
+    compose = Compose([
+        Resize(int(1.14 * config.train.img_size), int(1.14 * config.train.img_size)),
+        HorizontalFlip(),
+        Transpose(),
+        CoarseDropout(p=0.3),
+        OneOf([
+            RandomBrightnessContrast(brightness_limit=0.6),
+            RandomGamma(),
+        ], p=0.6),
+        ShiftScaleRotate(rotate_limit=45),  # 75
+        OneOf([
+            CLAHE(p=0.5),
+            GaussianBlur(3, p=0.3),
+            IAASharpen(alpha=(0.2, 0.3), p=0.3),
+        ], p=1),  # 1
+        OneOf([
+            # 畸变相关操作
+            OpticalDistortion(p=0.3),
+            GridDistortion(p=0.2),
+            IAAPiecewiseAffine(p=0.3),
+        ], p=0.2),
+        # add
+        OneOf([
+            MotionBlur(p=0.3),
+            MedianBlur(blur_limit=3, p=0.3),
+            Blur(blur_limit=3, p=0.3),
+        ], p=0.8),
+        Normalize(
+            mean=config.train.mean,
+            std=config.train.std,
+        ),
+        RandomCrop(config.train.img_size, config.train.img_size),
+        ToTensorV2(),
+    ])
+    return compose
+
+def train_compose2(config):
+    compose = Compose([
+        Resize(256, 256),
+        HorizontalFlip(),
+        Transpose(),
+        Normalize(
+            mean=config.train.mean,
+            std=config.train.std,
+        ),
+        RandomCrop(config.train.img_size, config.train.img_size),
+        ToTensorV2(),
+    ])
+    return compose

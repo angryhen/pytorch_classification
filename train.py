@@ -3,13 +3,13 @@ import os
 import time
 
 import apex
-from apex.parallel import convert_syncbn_model, DistributedDataParallel as DDP
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn as nn
 import torch.distributed as dist
+import torch.nn as nn
 from alfred.utils.log import logger
+from apex.parallel import convert_syncbn_model, DistributedDataParallel as DDP
 from sklearn.model_selection import KFold
 
 from configs.config import get_cfg_defaults
@@ -19,14 +19,13 @@ from lib.optimizer import get_optimizer
 from lib.scheduler import CosineWarmupLr
 from lib.tensorboard import get_tensorboard_writer
 from losses.losses import get_loss
+from utils.env_info import get_env_info
 from utils.get_rank import get_rank
 from utils.metrics import accuracy, AverageMeter, ProgressMeter
 from utils.save import save_checkpoint
 from utils.set_seed import set_seed
-from utils.env_info import get_env_info
 
 os.environ["CUDA_DEVICE_ORDER"] = 'PCI_BUS_ID'
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--configs', type=str, default=None,
@@ -75,7 +74,7 @@ def train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, 
         images = images.to(device,
                            non_blocking=config.train.dataloader.non_blocking)
         targets = targets.to(device,
-                           non_blocking=config.train.dataloader.non_blocking)
+                             non_blocking=config.train.dataloader.non_blocking)
 
         outputs = model(images)
         optimizer.zero_grad()
@@ -143,7 +142,6 @@ def val(config, val_loader, model, val_loss, writer):
                 targets = targets.to(device,
                                      non_blocking=config.train.dataloader.non_blocking)
 
-
             # compute output
             output = model(images)
             loss = val_loss(output, targets)
@@ -170,7 +168,6 @@ def val(config, val_loader, model, val_loss, writer):
             # measure elapsed time
             batch_time.update(time.time() - end)
             end = time.time()
-
 
         # add writer
         if get_rank() == 0:
@@ -232,7 +229,7 @@ def main():
             else:
                 model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
         if config.apex:
-            model = DDP(model,delay_allreduce=True)
+            model = DDP(model, delay_allreduce=True)
         else:
             model = nn.parallel.DistributedDataParallel(model,
                                                         device_ids=[config.dist_local_rank],
@@ -242,7 +239,7 @@ def main():
     train_loss, val_loss = get_loss(config)
 
     data = pd.read_csv(config.train.dataset)
-    skf = KFold(n_splits=10,shuffle=True, random_state=452)
+    skf = KFold(n_splits=10, shuffle=True, random_state=452)
     for fold_idx, (train_idx, val_idx) in enumerate(
             skf.split(data['filename'].values, data['filename'].values)):
         if fold_idx == config.train.fold:
@@ -251,7 +248,7 @@ def main():
         # split data
         train_data = data.iloc[train_idx]
         val_data = data.iloc[val_idx]
-        if get_config()==0:
+        if get_config() == 0:
             logger.info(f"Splited train set: {train_data.shape}")
             logger.info(f"Splited val set: {val_data.shape}")
 
@@ -292,6 +289,6 @@ def main():
         writer.close()
         torch.cuda.empty_cache()
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     main()

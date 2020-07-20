@@ -1,9 +1,8 @@
 import torch
-import torch.nn as nn
 from alfred.utils.log import logger
 
-from utils.get_rank import get_rank
 from lib.use_model import choice_model, resume_custom
+from utils.get_rank import get_rank
 
 
 def get_model(config):
