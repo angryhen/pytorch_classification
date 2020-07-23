@@ -285,8 +285,8 @@ def main():
                         'lowest_loss': lowest_loss,
                     }
                     save_checkpoint(state, epoch, is_best, is_lowest_loss, save_path)
-
-        writer.close()
+        if get_rank() == 0:
+            writer.close()
         torch.cuda.empty_cache()
 
 

@@ -37,9 +37,9 @@ def process(img_path):
 
 # load onnx
 onnx_model = onnx.load('resnest50.onnx')
-print(onnx.checker.check_model(onnx_model))
+onnx.checker.check_model(onnx_model)
 
-onnx.helper.printable_graph(onnx_model.graph)
+print(onnx.helper.printable_graph(onnx_model.graph))
 
 ort_session = onnxruntime.InferenceSession('resnest50.onnx')
 

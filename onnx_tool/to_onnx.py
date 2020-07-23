@@ -24,7 +24,7 @@ def resume_custom(checkpoint, model):
 if __name__ == "__main__":
     checkpoint = '/home/du/Desktop/my_project/pytorch_classification/logs/resnest50_c15/18.pth'
     model_name = 'resnest50'
-    onnx_model_name = 'resnest50'
+    onnx_model_name = 'resnest50.onnx'
     n_class = 15
 
     model = choice_model(model_name, n_class)
@@ -42,13 +42,15 @@ if __name__ == "__main__":
                       x,  # model input (or a tuple for multiple inputs)
                       onnx_model_name,  # where to save the model (can be a file or file-like object)
                       export_params=True,  # store the trained parameter weights inside the model file
-                      opset_version=10,  # the ONNX version to export the model to
+                      opset_version=11,  # the ONNX version to export the model to
                       do_constant_folding=True,  # whether to execute constant folding for optimization
                       verbose=True,
                       input_names=['input'],  # the model's input names
                       output_names=['output'],  # the model's output names
-                      dynamic_axes={'input': {0: 'batch_size'},  # variable lenght axes
-                                    'output': {0: 'batch_size'}})
+                      # dynamic_axes={'input': {0: 'batch_size'},  # variable lenght axes
+                      #               'output': {0: 'batch_size'}}
+                      dynamic_axes=None
+                      )
 
     onnx_model = onnx.load(onnx_model_name)
     onnx.checker.check_model(onnx_model)

@@ -1,7 +1,7 @@
 import argparse
 import os
 import time
-
+import sys
 import cv2
 import numpy as np
 import pandas as pd
@@ -108,13 +108,16 @@ if __name__ == '__main__':
 
     # predict single image
     if args.image:
+        logger.info('test mode: single image')
         result = single_image(args.image, models)
-        print('result:', result)
+        logger.info('result:', result)
+        sys.exit(0)
         # print('result:', result, 'label:', config.labels[int(result)])
     else:
-        print('single image: None')
+        logger.info('single image: None')
 
     if config.test.dataset:
+        logger.info('test mode: csv')
         # skf = KFold(n_splits=0)
         test_data = pd.read_csv(config.test.dataset)
         logger.info(f"test set: {test_data.shape}")
