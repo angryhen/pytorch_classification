@@ -111,8 +111,9 @@ if __name__ == '__main__':
         logger.info('test mode: single image')
         result = single_image(args.image, models)
         logger.info('result:', result)
+        print('result:', result, 'label:', config.labels_list[int(result)])
         sys.exit(0)
-        # print('result:', result, 'label:', config.labels[int(result)])
+
     else:
         logger.info('single image: None')
 

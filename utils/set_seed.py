@@ -3,8 +3,7 @@ import numpy as np
 import torch
 
 
-def set_seed(config):
-    seed = config.train.seed
+def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)

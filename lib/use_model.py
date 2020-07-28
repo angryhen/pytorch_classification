@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
+from efficientnet_pytorch import EfficientNet
 from model.resnest.torch import resnest50, resnest101, resnest200, resnest269
 import collections
+
 
 class ResNest_50(nn.Module):
     def __init__(self, pretrained, num_classes):
@@ -69,6 +71,9 @@ def choice_model(flag, num_classes):
         return ResNest_269(pretrained=True, num_classes=num_classes)
     elif flag == 'resnext101':
         return ResNesXt_101(pretrained=True, num_classes=num_classes)
+    elif flag == 'efficientnet-b7':
+        model = EfficientNet.from_pretrained('efficientnet-b7', num_classes=num_classes)
+        return model
 
 def resume_custom(config, model):
     ch = torch.load(config.model.custom_checkpoint)

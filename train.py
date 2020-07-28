@@ -35,7 +35,6 @@ args = parser.parse_args()
 
 torch.backends.cudnn.benchmark = True
 global_step = 0
-data_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def get_config():
@@ -184,15 +183,18 @@ def val(config, val_loader, model, val_loss, writer):
             return np.squeeze(top1.avg.numpy()), losses.avg
 
 
-def main():
-    config = get_config()
-    set_seed(config)
-
+def message_info(config):
     if get_rank() == 0:
         logger.info(get_env_info())
         logger.info(f'Distributed: {config.dist},'
                     f'Apex: {config.apex},'
                     f'Sync_bn: {config.dist_sync_bn}')
+        logger.info(f'Model name: {config.model.name}')
+
+def main():
+    config = get_config()
+    set_seed(config.train.seed)
+    message_info(config)
 
     # dist
     if config.dist:
@@ -201,6 +203,7 @@ def main():
         torch.cuda.set_device(config.dist_local_rank)
 
     # create log path
+    data_time = time.strftime("%Y-%m-%d %H:%M:%S")
     val_log_file = os.path.join(config.log_dir, data_time) + '/log.txt'
     writer_log_file = os.path.join(config.log_dir, data_time)
     save_path = os.path.join(config.log_dir, data_time)
@@ -238,6 +241,7 @@ def main():
     # loss
     train_loss, val_loss = get_loss(config)
 
+    # load_data
     data = pd.read_csv(config.train.dataset)
     skf = KFold(n_splits=10, shuffle=True, random_state=452)
     for fold_idx, (train_idx, val_idx) in enumerate(
@@ -245,17 +249,16 @@ def main():
         if fold_idx == config.train.fold:
             break
 
-        # split data
+        # create dataloader
         train_data = data.iloc[train_idx]
         val_data = data.iloc[val_idx]
-        if get_config() == 0:
+        train_loader = create_dataloader(config, train_data, 'train')
+        val_loader = create_dataloader(config, val_data, 'val')
+        if get_rank() == 0:
             logger.info(f"Splited train set: {train_data.shape}")
             logger.info(f"Splited val set: {val_data.shape}")
 
-        # create dataloader
-        train_loader = create_dataloader(config, train_data, 'train')
-        val_loader = create_dataloader(config, val_data, 'val')
-
+        # scheduler
         scheduler = CosineWarmupLr(config, optimizer, len(train_loader))
 
         best_precision, lowest_loss = 0, 100

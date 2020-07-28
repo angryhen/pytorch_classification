@@ -44,7 +44,7 @@ def train_compose(config):
             CLAHE(p=0.5),
             GaussianBlur(3, p=0.3),
             IAASharpen(alpha=(0.2, 0.3), p=0.3),
-        ], p=1),  # 1
+        ], p=0.8),  # 1
         OneOf([
             # 畸变相关操作
             OpticalDistortion(p=0.3),
@@ -56,7 +56,7 @@ def train_compose(config):
             MotionBlur(p=0.3),
             MedianBlur(blur_limit=3, p=0.3),
             Blur(blur_limit=3, p=0.3),
-        ], p=0.8),
+        ], p=0.8),  # 0.8
         Normalize(
             mean=config.train.mean,
             std=config.train.std,
