@@ -1,3 +1,6 @@
+apex: False
+dist: False
+
 model:
   name: resnest50
   num_classes: 6
@@ -7,7 +10,6 @@ model:
 
 train:
   dataset: /home/du/Desktop/work_project/TBox-server-dh/classification/ResNeSt/scripts/tbox_shape_train.csv
-  num_classes: 6
   batch_size: 64
   epoches: 30
   label_smooth: 0.1

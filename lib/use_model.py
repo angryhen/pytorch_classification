@@ -71,8 +71,8 @@ def choice_model(flag, num_classes):
         return ResNest_269(pretrained=True, num_classes=num_classes)
     elif flag == 'resnext101':
         return ResNesXt_101(pretrained=True, num_classes=num_classes)
-    elif flag == 'efficientnet-b7':
-        model = EfficientNet.from_pretrained('efficientnet-b7', num_classes=num_classes)
+    elif 'efficientnet' in flag:
+        model = EfficientNet.from_pretrained(flag, num_classes=num_classes)
         return model
 
 def resume_custom(config, model):

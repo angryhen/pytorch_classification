@@ -24,6 +24,37 @@ from utils.get_rank import get_rank
 from utils.metrics import accuracy, AverageMeter, ProgressMeter
 from utils.save import save_checkpoint, create_logFile
 from utils.set_seed import set_seed
+from torchvision.models import mobilenet_v2
+from lib.use_model import choice_model
+
+import torch.nn.functional as F
+
+
+def loss_fn_kd(outputs, labels, teacher_outputs, T, alpha):
+    """
+    Compute the knowledge-distillation (KD) loss given outputs, labels.
+    "Hyperparameters": temperature and alpha
+
+    NOTE: the KL Divergence for PyTorch comparing the softmaxs of teacher
+    and student expects the input tensor to be log probabilities!
+    """
+
+    KD_loss = nn.KLDivLoss()(F.log_softmax(outputs/T, dim=1),
+                             F.softmax(teacher_outputs/T, dim=1)) * (alpha * T * T) + \
+              F.cross_entropy(outputs, labels) * (1. - alpha)
+
+    return KD_loss
+
+
+def Mobilenetv2(num_classes, test=False):
+    model = mobilenet_v2()
+    state_dict = torch.hub.load_state_dict_from_url('https://download.pytorch.org/models/mobilenet_v2-b0353104.pth',
+                                                    progress=True)
+    model.load_state_dict(state_dict)
+    fc_features = model.classifier[1].in_features
+    model.classifier = nn.Linear(fc_features, num_classes)
+    model = model.cuda()
+    return model
 
 os.environ["CUDA_DEVICE_ORDER"] = 'PCI_BUS_ID'
 
@@ -45,6 +76,14 @@ def get_config():
     config.merge_from_list(['dist_local_rank', args.local_rank])
     config.freeze()
     return config
+
+def load_model(config):
+    model = choice_model(config.model.name, config.model.num_classes)
+    if torch.cuda.is_available():
+        model = model.cuda()
+    ch = torch.load(config.model.checkpoint)
+    model.load_state_dict(ch['state_dict'])
+    return model
 
 
 def train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, writer):
@@ -79,6 +118,81 @@ def train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, 
         optimizer.zero_grad()
 
         loss = train_loss(outputs, targets)
+        if config.apex:
+            with apex.amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
+        else:
+            loss.backward()
+
+        optimizer.step()
+
+        acc1, acc5 = accuracy(outputs, targets, topk=(1, 5))
+        if config.dist:
+            loss_reduce = dist.all_reduce(loss, op=dist.ReduceOp.SUM, async_op=True)
+            acc1_reduce = dist.all_reduce(acc1, op=dist.ReduceOp.SUM, async_op=True)
+            acc5_reduce = dist.all_reduce(acc5, op=dist.ReduceOp.SUM, async_op=True)
+
+            loss_reduce.wait()
+            acc1_reduce.wait()
+            acc5_reduce.wait()
+
+            loss.div_(dist.get_world_size())
+            acc1.div_(dist.get_world_size())
+            acc5.div_(dist.get_world_size())
+
+        batch_time.update(time.time() - end)
+        losses.update(loss.item(), images.size(0))
+        top1.update(acc1[0], images.size(0))
+        top5.update(acc5[0], images.size(0))
+
+        if get_rank() == 0:
+            if step % config.train.preiod == 0 or step == len(train_loader):
+                progress.pr2int(step)
+
+            # add writer
+            writer.add_scalar('Train/Loss', losses.avg, global_step)
+            writer.add_scalar('Train/Acc-Top1', top1.avg, global_step)
+            writer.add_scalar('Train/Acc-Top5', top5.avg, global_step)
+            writer.add_scalar('Train/lr', scheduler.learning_rate, global_step)
+
+        scheduler.step()
+        end = time.time()
+
+
+def kd_train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, writer, techer_model):
+    techer_model.eval()
+    global global_step
+
+    # switch to train mode
+    model.train()
+    device = torch.device(config.device)
+    print('device: ', device)
+
+    logger.info(f'Epoches: {epoch}/{config.train.epoches}')
+
+    # mertric
+    batch_time = AverageMeter('Time', ':6.3f')
+    losses = AverageMeter('Loss', ':.4e')
+    top1 = AverageMeter('Acc@1', ':6.2f')
+    top5 = AverageMeter('Acc@5', ':6.2f')
+    progress = ProgressMeter(len(train_loader), batch_time, losses, top1, top5)
+    end = time.time()
+
+    # train
+    for step, (images, targets) in enumerate(train_loader):
+        global_step += 1
+        step += 1
+
+        images = images.to(device,
+                           non_blocking=config.train.dataloader.non_blocking)
+        targets = targets.to(device,
+                             non_blocking=config.train.dataloader.non_blocking)
+
+        outputs = model(images)
+        techer_outputs = techer_model(images)
+        optimizer.zero_grad()
+
+        loss = loss_fn_kd(outputs, targets, techer_outputs, T=10, alpha=0.5)
         if config.apex:
             with apex.amp.scale_loss(loss, optimizer) as scaled_loss:
                 scaled_loss.backward()
@@ -213,7 +327,9 @@ def main():
         writer = None
 
     # model
-    model = get_model(config)
+    techer_models = load_model(config)
+    techer_models.eval()
+    model = Mobilenetv2(num_classes=15)
 
     # optimizer
     optimizer = get_optimizer(config, model)
@@ -267,6 +383,7 @@ def main():
 
             # train
             train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, writer)
+            # kd_train(config, epoch, train_loader, model, optimizer, scheduler, train_loss, writer,techer_model=techer_models)
 
             # val
             if epoch % config.train.val_preiod == 0:
