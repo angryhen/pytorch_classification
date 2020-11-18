@@ -79,11 +79,11 @@ def resume_custom(config, model):
     ch = torch.load(config.model.custom_checkpoint)
     ans = collections.OrderedDict()
     for k, v in ch['state_dict'].items():
-        ind = k.find('model')
+        ind = k.find('_')
         ans[k[ind:]] = v
 
-    ans.pop('model.fc.weight')
-    ans.pop('model.fc.bias')
+    ans.pop('_fc.weight')
+    ans.pop('_fc.bias')
     model_dict = model.state_dict()
     model_dict.update(ans)
     model.load_state_dict(model_dict)

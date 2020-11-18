@@ -189,7 +189,7 @@ def message_info(config):
         logger.info(f'Distributed: {config.dist},'
                     f'Apex: {config.apex},'
                     f'Sync_bn: {config.dist_sync_bn}')
-        logger.info(f'Model name: {config.model.name}')
+        logger.info(f'Model name: {config.model.name} Num classes: {config.model.num_classes}')
 
 
 def main():
@@ -290,6 +290,8 @@ def main():
                         'lowest_loss': lowest_loss,
                     }
                     save_checkpoint(state, epoch, is_best, is_lowest_loss, save_path)
+        torch.save(model,
+                   os.path.join(save_path, 'whole_model.pth'))
         if get_rank() == 0:
             writer.close()
         torch.cuda.empty_cache()

@@ -9,9 +9,9 @@ def resume_custom(checkpoint, model):
     ch = torch.load(checkpoint)
     ans = collections.OrderedDict()
     for k, v in ch['state_dict'].items():
-        ind = k.find('model')
-        ans[k[ind:]] = v
-
+        # ind = k.find('model')
+        # ans[k[ind:]] = v
+        ans[k] = v
 
     model_dict = model.state_dict()
     model_dict.update(ans)
@@ -21,19 +21,21 @@ def resume_custom(checkpoint, model):
 
 if __name__ == '__main__':
     # parameters
-    checkpoint = '/home/du/Desktop/my_project/pytorch_classification/logs/resnest50_c15/18.pth'
-    model_name = 'resnest50'
-    onnx_model_name = 'resnest50.onnx'
-    n_class = 15
+    checkpoint = '/home/du/Desktop/my_project/pytorch_classification/logs/11-13_17:32_efficientnet-b4_c254/50.pth'
+    model_name = 'efficientnet-b4'
+    # onnx_model_name = 'resnest50.onnx'
+    n_class = 254
     img_size = 224
     data = torch.randn((1,3,img_size,img_size)).cuda()
     n = 100
 
     # model
     model = choice_model(model_name, n_class)
+
     model = resume_custom(checkpoint, model)
     model = model.cuda().eval()
-    model_trt = torch2trt(model, [data], fp16_mode=True)
+    data = data.contiguous()
+    model_trt = torch2trt(model, [data], fp16_mode=False)
 
     # test error
     result = model(data)
